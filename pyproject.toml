@@ -1,16 +1,27 @@
 [project]
 name = "cmsi638-stocktracker"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0"
+description = "Multi-agent stock analysis system with 32-signal IC-by-horizon table"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    # ── Core agent & MCP ───────────────────────────────────────────────────
     "fastmcp>=3.2.0",
     "google-adk>=1.28.1",
     "google-genai>=1.70.0",
-    "massive>=2.4.0",
     "mcp>=1.27.0",
+
+    # ── Market data ────────────────────────────────────────────────────────
+    "massive>=2.4.0",
     "polygon>=1.2.8",
     "polygon-api-client>=1.16.3",
+    "httpx>=0.28.1",
+
+    # ── Quantitative / signal computation ─────────────────────────────────
+    "numpy>=1.26.0",
+    "pandas>=2.2.0",
+    "scipy>=1.13.0",
+
+    # ── Utilities ──────────────────────────────────────────────────────────
     "python-dotenv>=1.2.2",
 ]
