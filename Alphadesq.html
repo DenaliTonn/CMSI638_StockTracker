@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AlphaDeskQ — Quant Signal Assistant</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap');
+
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg0:#0D0F14;--bg1:#141720;--bg2:#1B1F2E;--bg3:#232840;
+  --t1:#E8EAF2;--t2:#8B90A8;--t3:#4E5370;
+  --bd:#2A2F45;--bdm:#363C57;
+  --up:#1DB87A;--dn:#E24B4A;--nu:#6B7494;
+  --acc:#3B82F6;--acc2:#60A5FA;
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'Syne',sans-serif;
+  --rad:8px;
+}
+body{background:var(--bg0);color:var(--t1);font-family:var(--mono);font-size:13px;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+/* ── Topbar ── */
+#topbar{display:flex;align-items:center;gap:12px;padding:9px 16px;background:var(--bg1);border-bottom:1px solid var(--bd);flex-shrink:0}
+.logo{font-family:var(--sans);font-size:15px;font-weight:700;letter-spacing:-0.02em;color:var(--t1)}
+.logo span{color:var(--acc2)}
+.ticker-wrap{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rad);padding:5px 10px}
+.ticker-wrap input{background:transparent;border:none;outline:none;font-family:var(--mono);font-size:13px;font-weight:500;color:var(--t1);width:80px;text-transform:uppercase}
+.ticker-wrap input::placeholder{color:var(--t3)}
+#fetch-btn{padding:5px 14px;background:var(--acc);color:#fff;border:none;border-radius:var(--rad);font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
+#fetch-btn:hover{background:var(--acc2)}
+#fetch-btn:disabled{opacity:.4;cursor:not-allowed}
+.tf-tabs{display:flex;gap:3px;margin-left:4px}
+.tf-btn{padding:4px 10px;border:1px solid var(--bd);border-radius:var(--rad);font-family:var(--mono);font-size:11px;background:transparent;color:var(--t2);cursor:pointer;transition:.1s}
+.tf-btn.active{background:var(--acc);color:#fff;border-color:var(--acc)}
+.tf-btn:hover:not(.active){background:var(--bg2);color:var(--t1)}
+.dot{width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0}
+.dot.red{background:var(--dn)}
+#status-msg{font-size:11px;color:var(--t2);margin-left:auto}
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid var(--bd);border-top-color:var(--acc2);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Body grid ── */
+#body{display:grid;grid-template-columns:1fr 340px;flex:1;overflow:hidden;min-height:0}
+#left{overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+#right{border-left:1px solid var(--bd);display:flex;flex-direction:column;background:var(--bg1)}
+
+/* ── Section label ── */
+.sl{font-family:var(--sans);font-size:10px;font-weight:600;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px}
+
+/* ── Cards ── */
+.card{background:var(--bg1);border:1px solid var(--bd);border-radius:var(--rad);padding:11px 13px}
+
+/* ── Prediction row ── */
+.pred-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pred-card{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rad);padding:9px 11px}
+.pred-card .tf{font-size:10px;color:var(--t3);font-family:var(--sans);font-weight:600}
+.pred-card .ret{font-size:20px;font-weight:500;margin:4px 0 2px}
+.pred-card .ci{font-size:10px;color:var(--t3)}
+.pred-card .str{font-size:11px;color:var(--t2);margin-top:3px}
+.pred-card .bar-wrap{height:2px;background:var(--bd);border-radius:2px;margin-top:7px;overflow:hidden}
+.pred-card .bar{height:100%;border-radius:2px;transition:width .6s}
+.up{color:var(--up)}.dn{color:var(--dn)}.nu{color:var(--nu)}
+
+/* ── IC Table ── */
+.ic-table{width:100%;border-collapse:collapse;font-size:11.5px}
+.ic-table th{font-family:var(--sans);font-size:10px;font-weight:600;color:var(--t3);text-align:right;padding:4px 6px;border-bottom:1px solid var(--bd)}
+.ic-table th:first-child{text-align:left}
+.ic-table th.hdr-active{color:var(--acc2)}
+.ic-table td{padding:5px 6px;text-align:right;border-bottom:1px solid var(--bd)}
+.ic-table td:first-child{text-align:left;color:var(--t1)}
+.ic-table tr:last-child td{border-bottom:none}
+.ic-table tr:hover td{background:var(--bg3)}
+.ic-pill{display:inline-block;padding:2px 5px;border-radius:3px;font-size:11px;cursor:pointer}
+.ic-hi{background:#0a2e1e;color:#1DB87A}.ic-mid{background:#2a1e07;color:#f0a93a}.ic-lo{background:#2e0d0d;color:#E24B4A}.ic-n{color:var(--t3)}
+.pattern-tag{font-size:10px;padding:2px 6px;border-radius:10px;font-family:var(--sans);font-weight:600}
+.pt-ap{background:#0a2e1e;color:#1DB87A}.pt-an{background:#2e0d0d;color:#E24B4A}
+.pt-gr{background:#0d1f3a;color:#60A5FA}.pt-dc{background:#221a30;color:#c084fc}
+.pt-rm{background:#1e1a10;color:#f0a93a}.pt-mx{background:#1a1a1a;color:#6B7494}
+
+/* ── Composite score ── */
+.score-wrap{display:flex;align-items:center;gap:14px}
+.score-ring{width:58px;height:58px;border-radius:50%;border:2px solid var(--bd);display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative}
+.score-ring::before{content:'';position:absolute;inset:-2px;border-radius:50%;background:conic-gradient(var(--ring-color,var(--acc)) var(--ring-deg,0deg),transparent 0deg);z-index:-1}
+.score-num{font-size:19px;font-weight:500}
+.score-meta .label{font-family:var(--sans);font-size:12px;font-weight:700}
+.score-meta .sub{font-size:11px;color:var(--t2);margin-top:2px}
+.regime-tag{display:inline-block;font-size:10px;padding:2px 8px;border-radius:10px;font-family:var(--sans);font-weight:600;margin-top:6px;background:var(--bg3);color:var(--t2)}
+
+/* ── Indicators ── */
+.ind-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.ind-item{display:flex;flex-direction:column;gap:3px}
+.ind-name{font-size:10px;color:var(--t2);font-family:var(--sans);font-weight:600}
+.ind-val{font-size:13px;font-weight:500}
+.ind-pct{font-size:10px;color:var(--t3)}
+.ind-bar-w{height:2px;background:var(--bd);border-radius:2px;overflow:hidden}
+.ind-bar{height:100%;border-radius:2px}
+
+/* ── Decision banner ── */
+.decision-banner{display:none;padding:10px 13px;border-radius:var(--rad);font-family:var(--sans);font-size:13px;font-weight:700;border:1px solid;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.decision-banner.buy{background:#0a2e1e;border-color:#1DB87A;color:#1DB87A}
+.decision-banner.sell{background:#2e0d0d;border-color:#E24B4A;color:#E24B4A}
+.decision-banner.hold{background:#1a1a10;border-color:#f0a93a;color:#f0a93a}
+
+/* ── Chat ── */
+#chat-header{padding:10px 13px;border-bottom:1px solid var(--bd);flex-shrink:0}
+#chat-header .ch-t{font-family:var(--sans);font-size:12px;font-weight:700;color:var(--t1)}
+#chat-header .ch-s{font-size:10px;color:var(--t3);margin-top:2px}
+#messages{flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:93%;padding:8px 10px;border-radius:var(--rad);font-size:12px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.msg.user{align-self:flex-end;background:var(--bg3);border:1px solid var(--bdm);color:var(--t1)}
+.msg.bot{align-self:flex-start;background:var(--bg2);border:1px solid var(--bd);color:var(--t1)}
+.msg.bot.loading{color:var(--t3)}
+.msg .ts{font-size:10px;color:var(--t3);display:block;margin-top:4px}
+.chat-footer{padding:9px 12px;border-top:1px solid var(--bd);display:flex;flex-direction:column;gap:6px;flex-shrink:0}
+.quick-btns{display:flex;flex-wrap:wrap;gap:4px}
+.qbtn{font-size:10px;font-family:var(--mono);padding:3px 8px;border:1px solid var(--bd);border-radius:10px;background:transparent;color:var(--t2);cursor:pointer;transition:.1s}
+.qbtn:hover{background:var(--bg2);color:var(--t1);border-color:var(--bdm)}
+.input-row{display:flex;gap:6px}
+#chat-input{flex:1;font-family:var(--mono);font-size:12px;padding:6px 10px;border:1px solid var(--bdm);border-radius:var(--rad);background:var(--bg2);color:var(--t1);outline:none}
+#chat-input:focus{border-color:var(--acc)}
+#send-btn{padding:6px 14px;background:var(--acc);color:#fff;border:none;border-radius:var(--rad);font-family:var(--sans);font-size:11px;font-weight:600;cursor:pointer;transition:.15s}
+#send-btn:hover{background:var(--acc2)}
+#send-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── Empty state ── */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;color:var(--t3);gap:8px}
+.empty-state .icon{font-size:28px;opacity:.4}
+.empty-state p{font-size:11px;font-family:var(--sans);text-align:center;max-width:160px;line-height:1.5}
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="logo"><span>ALPHA</span>DESKQ</div>
+  <div class="ticker-wrap">
+    <div class="dot" id="dot"></div>
+    <input id="ticker-input" placeholder="TICKER" maxlength="6" onkeydown="if(event.key==='Enter')fetchDashboard()"/>
+  </div>
+  <button id="fetch-btn" onclick="fetchDashboard()">Analyze</button>
+  <div class="tf-tabs" id="tf-tabs">
+    <button class="tf-btn active" data-tf="1h" onclick="setTF(this)">1H</button>
+    <button class="tf-btn" data-tf="4h" onclick="setTF(this)">4H</button>
+    <button class="tf-btn" data-tf="8h" onclick="setTF(this)">8H</button>
+    <button class="tf-btn" data-tf="24h" onclick="setTF(this)">24H</button>
+  </div>
+  <div id="status-msg">Enter a ticker to begin</div>
+</div>
+
+<div id="body">
+  <div id="left">
+    <div>
+      <div class="sl">Return Predictions</div>
+      <div class="pred-grid" id="pred-grid">
+        <div class="pred-card" style="grid-column:1/-1;text-align:center;padding:20px;color:var(--t3);font-family:var(--sans);font-size:12px">Waiting for analysis...</div>
+      </div>
+    </div>
+    <div class="decision-banner" id="decision-banner"></div>
+    <div class="card">
+      <div class="sl">IC Table — Information Coefficients by Horizon</div>
+      <div id="ic-wrap" style="overflow-x:auto">
+        <div style="color:var(--t3);font-size:11px;padding:8px 0">Run an analysis to populate the IC table.</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="card">
+        <div class="sl">Composite Signal</div>
+        <div id="score-wrap"><div style="color:var(--t3);font-size:11px">—</div></div>
+      </div>
+      <div class="card">
+        <div class="sl">Technical Indicators</div>
+        <div class="ind-grid" id="ind-grid"><div style="color:var(--t3);font-size:11px">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="right">
+    <div id="chat-header">
+      <div class="ch-t">ALPHA — Research Assistant</div>
+      <div class="ch-s">Powered by Claude · Context-aware analysis</div>
+    </div>
+    <div id="messages">
+      <div class="msg bot">Hello. I'm ALPHA, your quantitative research assistant.
+
+Fetch a ticker using the toolbar above, then ask me anything about the IC table, signal patterns, return predictions, or trade rationale.
+
+I have full context of the live dashboard data.</div>
+    </div>
+    <div class="chat-footer">
+      <div class="quick-btns">
+        <button class="qbtn" onclick="askQuick('Which factors are strongest at the current timeframe?')">Top factors</button>
+        <button class="qbtn" onclick="askQuick('Are there any conflicting signals I should watch?')">Conflicts</button>
+        <button class="qbtn" onclick="askQuick('Give me a 2-sentence trade thesis.')">Trade thesis</button>
+        <button class="qbtn" onclick="askQuick('Explain the IC pattern classifications shown.')">Pattern guide</button>
+      </div>
+      <div class="input-row">
+        <input id="chat-input" placeholder="Ask about signals, factors, predictions..." onkeydown="if(event.key==='Enter')sendMsg()"/>
+        <button id="send-btn" onclick="sendMsg()">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000'; 
+
+let curTF = '1h';
+let dashData = null;
+let chatHistory = [];
+let msgCount = 0;
+
+function setTF(btn) {
+  curTF = btn.dataset.tf;
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (dashData) renderDashboard(dashData);
+}
+
+function setStatus(msg, loading = false) {
+  const el = document.getElementById('status-msg');
+  el.innerHTML = loading ? `<span class="spinner"></span>${msg}` : msg;
+}
+
+function setDot(ok) {
+  const d = document.getElementById('dot');
+  d.className = ok ? 'dot' : 'dot red';
+}
+
+async function fetchDashboard() {
+  const ticker = document.getElementById('ticker-input').value.trim().toUpperCase();
+  if (!ticker) return;
+  const btn = document.getElementById('fetch-btn');
+  btn.disabled = true;
+  setStatus(`Fetching ${ticker}...`, true);
+  setDot(false);
+
+  try {
+    const res = await fetch(`${API}/api/dashboard/${ticker}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    dashData = await res.json();
+    renderDashboard(dashData);
+    setStatus(`${ticker} · ${dashData.bar_count} bars · ${dashData.elapsed_sec}s`);
+    setDot(true);
+
+    addMsg(`Dashboard loaded for ${ticker}. ${dashData.bar_count} hourly bars. Regime: ${dashData.composite.regime}. Composite score: ${dashData.composite.score}/100.`, 'bot');
+  } catch (e) {
+    setStatus(`Error: ${e.message}`);
+    addMsg(`Failed to load data: ${e.message}\n\nMake sure web_server.py is running at ${API}`, 'bot');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderDashboard(d) {
+  renderPredictions(d.predictions);
+  renderICTable(d.ic_table);
+  renderComposite(d.composite);
+  renderIndicators(d.indicators);
+  renderDecision(d.composite);
+}
+
+function sfmt(v, decimals = 3) {
+  if (v === null || v === undefined) return 'N/A';
+  return (v >= 0 ? '+' : '') + v.toFixed(decimals);
+}
+
+function retClass(v) { return v > 0 ? 'up' : v < 0 ? 'dn' : 'nu'; }
+
+function renderPredictions(preds) {
+  const grid = document.getElementById('pred-grid');
+  grid.innerHTML = preds.map(p => {
+    const r = p.predicted_return;
+    const rc = r !== null ? retClass(r) : 'nu';
+    const barPct = r !== null ? Math.min(100, Math.abs(r) * 35) : 0;
+    const barColor = r > 0 ? 'var(--up)' : r < 0 ? 'var(--dn)' : 'var(--nu)';
+    const isActive = p.horizon === curTF ? 'border-color:var(--acc)' : '';
+    return `<div class="pred-card" style="${isActive}">
+      <div class="tf">${p.horizon.toUpperCase()}</div>
+      <div class="ret ${rc}">${r !== null ? sfmt(r, 2) + '%' : '—'}</div>
+      <div class="ci">${p.ci_low !== null ? sfmt(p.ci_low, 2) + '% / ' + sfmt(p.ci_high, 2) + '%' : ''}</div>
+      <div class="str">Signal: <strong>${p.signal_strength ?? '—'}</strong>/100</div>
+      <div class="bar-wrap"><div class="bar" style="width:${barPct}%;background:${barColor}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function icClass(v) {
+  if (v === null) return 'ic-n';
+  if (Math.abs(v) < 0.01) return 'ic-n';
+  if (v >= 0.07) return 'ic-hi';
+  if (v >= 0.03) return 'ic-mid';
+  if (v <= -0.03) return 'ic-lo';
+  return 'ic-n';
+}
+
+function patternClass(p) {
+  return { 'always +': 'pt-ap', 'always -': 'pt-an', 'grows': 'pt-gr',
+           'decays': 'pt-dc', 'rev→mom': 'pt-rm', 'mixed': 'pt-mx' }[p] || 'pt-mx';
+}
+
+const TF_KEY = { '1h': 'ic_1h', '4h': 'ic_4h', '8h': 'ic_8h', '24h': 'ic_24h' };
+
+function renderICTable(rows) {
+  const wrap = document.getElementById('ic-wrap');
+  const activeKey = TF_KEY[curTF];
+  const hdr = `<table class="ic-table">
+    <thead><tr>
+      <th>Signal</th>
+      <th class="${curTF==='1h'?'hdr-active':''}">1H</th>
+      <th class="${curTF==='4h'?'hdr-active':''}">4H</th>
+      <th class="${curTF==='8h'?'hdr-active':''}">8H</th>
+      <th class="${curTF==='24h'?'hdr-active':''}">24H</th>
+      <th>Best</th>
+      <th>Pattern</th>
+    </tr></thead><tbody>`;
+  const body = rows.map(r => {
+    const ic1 = r.ic_1h, ic4 = r.ic_4h, ic8 = r.ic_8h, ic24 = r.ic_24h;
+    const fmt = v => v !== null ? `<span class="ic-pill ${icClass(v)}">${sfmt(v)}</span>` : '<span class="ic-n">—</span>';
+    const active = r[activeKey];
+    const rowStyle = active !== null && Math.abs(active) >= 0.07 ? 'background:var(--bg3)' : '';
+    return `<tr style="${rowStyle}">
+      <td>${r.signal}</td>
+      <td>${fmt(ic1)}</td><td>${fmt(ic4)}</td><td>${fmt(ic8)}</td><td>${fmt(ic24)}</td>
+      <td style="color:var(--t2);font-size:11px">${r.best}</td>
+      <td><span class="pattern-tag ${patternClass(r.pattern)}">${r.pattern}</span></td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML = hdr + body + '</tbody></table>';
+}
+
+function renderComposite(c) {
+  const biasColor = c.bias === 'long' ? 'var(--up)' : c.bias === 'short' ? 'var(--dn)' : 'var(--nu)';
+  const biasLabel = { long: 'BULLISH', short: 'BEARISH', neutral: 'NEUTRAL' }[c.bias] || 'NEUTRAL';
+  const deg = Math.round(c.score / 100 * 360);
+  document.getElementById('score-wrap').innerHTML = `
+    <div class="score-ring" style="--ring-color:${biasColor};--ring-deg:${deg}deg">
+      <span class="score-num" style="color:${biasColor}">${c.score}</span>
+    </div>
+    <div class="score-meta">
+      <div class="label" style="color:${biasColor}">${biasLabel}</div>
+      <div class="sub">Alpha score / 100</div>
+      <div class="regime-tag">${c.regime}</div>
+    </div>`;
+}
+
+function renderIndicators(inds) {
+  const grid = document.getElementById('ind-grid');
+  if (!inds || !inds.length) { grid.innerHTML = '<div style="color:var(--t3);font-size:11px">No indicators</div>'; return; }
+  grid.innerHTML = inds.map(i => {
+    const barColor = i.direction === 'up' ? 'var(--up)' : i.direction === 'dn' ? 'var(--dn)' : 'var(--nu)';
+    const vc = i.direction === 'up' ? 'up' : i.direction === 'dn' ? 'dn' : 'nu';
+    const valStr = i.value !== null ? (i.value >= 0 ? '+' : '') + i.value.toFixed(4) : '—';
+    return `<div class="ind-item">
+      <span class="ind-name">${i.name}</span>
+      <span class="ind-val ${vc}">${valStr}</span>
+      <span class="ind-pct">${i.percentile}th pctl</span>
+      <div class="ind-bar-w"><div class="ind-bar" style="width:${i.percentile}%;background:${barColor}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderDecision(composite) {
+  const banner = document.getElementById('decision-banner');
+  const word = { long: 'BUY ↑', short: 'SELL ↓', neutral: 'HOLD →' }[composite.bias] || 'HOLD →';
+  const cls  = { long: 'buy', short: 'sell', neutral: 'hold' }[composite.bias] || 'hold';
+  banner.textContent = `${word}  |  Score: ${composite.score}/100  |  ${composite.regime}`;
+  banner.className = `decision-banner ${cls}`;
+  banner.style.display = 'block';
+}
+
+function buildSystemPrompt() {
+  const ticker = document.getElementById('ticker-input').value.trim().toUpperCase() || 'N/A';
+  if (!dashData) {
+    return `You are ALPHA, a senior quantitative research assistant at J.P. Morgan.
+No dashboard data has been loaded yet. Guide the user to enter a ticker and click Analyze.`;
+  }
+  const d = dashData;
+  const topIC = d.ic_table.slice(0, 5).map(r =>
+    `${r.signal}: 1h=${r.ic_1h ?? 'N/A'}, 4h=${r.ic_4h ?? 'N/A'}, 8h=${r.ic_8h ?? 'N/A'}, 24h=${r.ic_24h ?? 'N/A'}, pattern=${r.pattern}`
+  ).join('\n');
+  const preds = d.predictions.map(p =>
+    `${p.horizon}: ret=${p.predicted_return !== null ? p.predicted_return.toFixed(2) : 'N/A'}%  CI=[${p.ci_low !== null ? p.ci_low.toFixed(2) : '?'}, ${p.ci_high !== null ? p.ci_high.toFixed(2) : '?'}]  str=${p.signal_strength}`
+  ).join('\n');
+  const inds = d.indicators.map(i =>
+    `${i.name}: ${i.value !== null ? i.value.toFixed(4) : 'N/A'} (${i.direction}, ${i.percentile}th pctl)`
+  ).join('\n');
+
+  return `You are ALPHA, a senior quantitative research assistant at J.P. Morgan's equities desk.
+You specialize in factor investing, IC analysis, technical indicators, and multi-horizon alpha research.
+
+Be precise, quantitative, and concise. Reference specific IC values and readings.
+Flag uncertainty honestly. Give clear, actionable views.
+
+LIVE DASHBOARD — ${ticker}
+Active timeframe: ${curTF}
+Composite score: ${d.composite.score}/100  Bias: ${d.composite.bias}  Regime: ${d.composite.regime}
+
+RETURN PREDICTIONS:
+${preds}
+
+TOP 5 SIGNALS BY IC:
+${topIC}
+
+TECHNICAL INDICATORS:
+${inds}`;
+}
+
+async function sendMsg() {
+  const inp = document.getElementById('chat-input');
+  const msg = inp.value.trim();
+  if (!msg) return;
+  inp.value = '';
+  addMsg(msg, 'user');
+  const loadId = addMsg('Thinking...', 'bot loading');
+  document.getElementById('send-btn').disabled = true;
+  chatHistory.push({ role: 'user', content: msg });
+
+  try {
+    const resp = await fetch(`${API}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system: buildSystemPrompt(),
+        messages: chatHistory,
+      })
+    });
+    const data = await resp.json();
+    const reply = data.content?.find(b => b.type === 'text')?.text || 'No response.';
+    chatHistory.push({ role: 'assistant', content: reply });
+    updateMsg(loadId, reply, 'bot');
+  } catch (e) {
+    updateMsg(loadId, `Connection error: ${e.message}`, 'bot');
+  }
+  document.getElementById('send-btn').disabled = false;
+}
+
+function askQuick(q) {
+  document.getElementById('chat-input').value = q;
+  sendMsg();
+}
+
+function addMsg(text, cls) {
+  const id = 'm' + (++msgCount);
+  const div = document.createElement('div');
+  div.className = 'msg ' + cls;
+  div.id = id;
+  div.textContent = text;
+  const ts = document.createElement('span');
+  ts.className = 'ts';
+  ts.textContent = new Date().toLocaleTimeString();
+  div.appendChild(ts);
+  document.getElementById('messages').appendChild(div);
+  div.scrollIntoView({ block: 'end' });
+  return id;
+}
+
+function updateMsg(id, text, cls) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = 'msg ' + cls;
+  el.childNodes[0].textContent = text;
+  el.scrollIntoView({ block: 'end' });
+}
+
+// Ping server on load
+(async () => {
+  try {
+    const r = await fetch(`${API}/api/signals`, { signal: AbortSignal.timeout(3000) });
+    if (r.ok) setStatus('Server connected · Enter a ticker');
+    else throw new Error();
+  } catch {
+    setStatus('⚠ Server offline — start web_server.py');
+    setDot(false);
+    addMsg(`Cannot reach ${API}.\n\nStart the FastAPI server:\n  uv run uvicorn web_server:app --reload --port 8000`, 'bot');
+  }
+})();
+</script>
+</body>
+</html>

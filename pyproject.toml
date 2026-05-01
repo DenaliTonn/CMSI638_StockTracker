@@ -1,7 +1,7 @@
 [project]
 name = "cmsi638-stocktracker"
-version = "0.2.0"
-description = "Multi-agent stock analysis system with 32-signal IC-by-horizon table"
+version = "0.3.0"
+description = "AlphaDeskQ — Multi-agent quant signal system with 32-signal IC-by-horizon table and web dashboard"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -10,6 +10,10 @@ dependencies = [
     "google-adk>=1.28.1",
     "google-genai>=1.70.0",
     "mcp>=1.27.0",
+
+    # ── Web server ─────────────────────────────────────────────────────────
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
 
     # ── Market data ────────────────────────────────────────────────────────
     "massive>=2.4.0",
