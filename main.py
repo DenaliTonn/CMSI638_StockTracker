@@ -21,7 +21,7 @@ client = RESTClient(os.getenv("MASSIVE_API_KEY"))
 def _fetch_hourly(ticker: str, n_bars: int = 600) -> pd.DataFrame:
     """Fetch hourly OHLCV bars and return a clean DataFrame."""
     end = datetime.now()
-    start = end - timedelta(days=max(60, n_bars // 16))
+    start = end - timedelta(days=max(120, n_bars // 16))
     aggs = client.get_aggs(
         ticker=ticker.upper(),
         multiplier=1,
@@ -282,7 +282,7 @@ def compute_all_indicators(ticker: str) -> str:
 
 
 @mcp.tool()
-def compute_ic_table(ticker: str, min_rows: int = 300) -> str:
+def compute_ic_table(ticker: str, min_rows: int = 100) -> str:
     """
     Computes the Information Coefficient (IC) table for a ticker — identical
     in structure to the GOOGL Hourly – IC by Horizon report.
