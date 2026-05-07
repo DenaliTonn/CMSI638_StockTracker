@@ -1,7 +1,8 @@
 # CMSI638 – StockTracker
 
-A multi-agent stock analysis system built with **Google ADK** and **FastMCP**.  
-The agent exposes **32 alpha signals** via a local MCP server, computes **Information Coefficient (IC) tables** across four time horizons (1h / 4h / 8h / 24h), and answers natural-language queries via a Gemini-backed ADK agent.
+A three-agent pipeline build with **Google ADK** and **FastMCP**.
+A data_agent fetches **32 alpha signals** via a local MCP server, a quant_agent contructs a **Information Coefficient (IC) tables** across four time horizons (1h / 4h / 8h / 24h), and a reasoning_agnet synthesizes buy/hold/sell decisions.
+
 
 ---
 
@@ -49,6 +50,13 @@ uv run adk_agent.py
 ```
 
 ---
+
+
+### 6. Start up the Dashboard
+```bash
+uv run uvicorn web_server:app --reload --port 8000
+```
+Maps to http://localhost:8000 in your browser to view dashboard
 
 ## MCP Tools
 
@@ -117,3 +125,6 @@ momentum_147h   -0.029   -0.043   -0.048   -0.084  24h    always -
 | `pandas` | Time-series data manipulation |
 | `scipy` | Spearman rank correlation for IC calculation |
 | `python-dotenv` | Environment variable loader |
+| `fastapi` | Web framework for the REST API |
+| `uvicorn` | ASGI server to run the web dashboard|
+| `httpx` | Async HTTP client (used for Gemini API calls in web server) |

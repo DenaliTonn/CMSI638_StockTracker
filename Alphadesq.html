@@ -20,7 +20,7 @@
 }
 body{background:var(--bg0);color:var(--t1);font-family:var(--mono);font-size:13px;height:100vh;overflow:hidden;display:flex;flex-direction:column}
 
-/* ── Topbar ── */
+/* Topbar */
 #topbar{display:flex;align-items:center;gap:12px;padding:9px 16px;background:var(--bg1);border-bottom:1px solid var(--bd);flex-shrink:0}
 .logo{font-family:var(--sans);font-size:15px;font-weight:700;letter-spacing:-0.02em;color:var(--t1)}
 .logo span{color:var(--acc2)}
@@ -40,18 +40,18 @@ body{background:var(--bg0);color:var(--t1);font-family:var(--mono);font-size:13p
 .spinner{display:inline-block;width:12px;height:12px;border:2px solid var(--bd);border-top-color:var(--acc2);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* ── Body grid ── */
+/* Body grid */
 #body{display:grid;grid-template-columns:1fr 340px;flex:1;overflow:hidden;min-height:0}
 #left{overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
 #right{border-left:1px solid var(--bd);display:flex;flex-direction:column;background:var(--bg1)}
 
-/* ── Section label ── */
+/* Section label */
 .sl{font-family:var(--sans);font-size:10px;font-weight:600;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px}
 
-/* ── Cards ── */
+/* Cards */
 .card{background:var(--bg1);border:1px solid var(--bd);border-radius:var(--rad);padding:11px 13px}
 
-/* ── Prediction row ── */
+/* Prediction row */
 .pred-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .pred-card{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rad);padding:9px 11px}
 .pred-card .tf{font-size:10px;color:var(--t3);font-family:var(--sans);font-weight:600}
@@ -62,7 +62,7 @@ body{background:var(--bg0);color:var(--t1);font-family:var(--mono);font-size:13p
 .pred-card .bar{height:100%;border-radius:2px;transition:width .6s}
 .up{color:var(--up)}.dn{color:var(--dn)}.nu{color:var(--nu)}
 
-/* ── IC Table ── */
+/* IC Table */
 .ic-table{width:100%;border-collapse:collapse;font-size:11.5px}
 .ic-table th{font-family:var(--sans);font-size:10px;font-weight:600;color:var(--t3);text-align:right;padding:4px 6px;border-bottom:1px solid var(--bd)}
 .ic-table th:first-child{text-align:left}
@@ -78,7 +78,7 @@ body{background:var(--bg0);color:var(--t1);font-family:var(--mono);font-size:13p
 .pt-gr{background:#0d1f3a;color:#60A5FA}.pt-dc{background:#221a30;color:#c084fc}
 .pt-rm{background:#1e1a10;color:#f0a93a}.pt-mx{background:#1a1a1a;color:#6B7494}
 
-/* ── Composite score ── */
+/* Composite score */
 .score-wrap{display:flex;align-items:center;gap:14px}
 .score-ring{width:58px;height:58px;border-radius:50%;border:2px solid var(--bd);display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative}
 .score-ring::before{content:'';position:absolute;inset:-2px;border-radius:50%;background:conic-gradient(var(--ring-color,var(--acc)) var(--ring-deg,0deg),transparent 0deg);z-index:-1}
@@ -87,7 +87,7 @@ body{background:var(--bg0);color:var(--t1);font-family:var(--mono);font-size:13p
 .score-meta .sub{font-size:11px;color:var(--t2);margin-top:2px}
 .regime-tag{display:inline-block;font-size:10px;padding:2px 8px;border-radius:10px;font-family:var(--sans);font-weight:600;margin-top:6px;background:var(--bg3);color:var(--t2)}
 
-/* ── Indicators ── */
+/* Indicators */
 .ind-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .ind-item{display:flex;flex-direction:column;gap:3px}
 .ind-name{font-size:10px;color:var(--t2);font-family:var(--sans);font-weight:600}
@@ -96,14 +96,14 @@ body{background:var(--bg0);color:var(--t1);font-family:var(--mono);font-size:13p
 .ind-bar-w{height:2px;background:var(--bd);border-radius:2px;overflow:hidden}
 .ind-bar{height:100%;border-radius:2px}
 
-/* ── Decision banner ── */
+/* Decision banner */
 .decision-banner{display:none;padding:10px 13px;border-radius:var(--rad);font-family:var(--sans);font-size:13px;font-weight:700;border:1px solid;animation:fadeIn .3s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 .decision-banner.buy{background:#0a2e1e;border-color:#1DB87A;color:#1DB87A}
 .decision-banner.sell{background:#2e0d0d;border-color:#E24B4A;color:#E24B4A}
 .decision-banner.hold{background:#1a1a10;border-color:#f0a93a;color:#f0a93a}
 
-/* ── Chat ── */
+/* Chat */
 #chat-header{padding:10px 13px;border-bottom:1px solid var(--bd);flex-shrink:0}
 #chat-header .ch-t{font-family:var(--sans);font-size:12px;font-weight:700;color:var(--t1)}
 #chat-header .ch-s{font-size:10px;color:var(--t3);margin-top:2px}
@@ -124,12 +124,12 @@ body{background:var(--bg0);color:var(--t1);font-family:var(--mono);font-size:13p
 #send-btn:hover{background:var(--acc2)}
 #send-btn:disabled{opacity:.4;cursor:not-allowed}
 
-/* ── Empty state ── */
+/* Empty state */
 .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;color:var(--t3);gap:8px}
 .empty-state .icon{font-size:28px;opacity:.4}
 .empty-state p{font-size:11px;font-family:var(--sans);text-align:center;max-width:160px;line-height:1.5}
 
-/* ── Scrollbars ── */
+/* Scrollbars */
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
@@ -183,7 +183,7 @@ body{background:var(--bg0);color:var(--t1);font-family:var(--mono);font-size:13p
   <div id="right">
     <div id="chat-header">
       <div class="ch-t">ALPHA — Research Assistant</div>
-      <div class="ch-s">Powered by Claude · Context-aware analysis</div>
+      <div class="ch-s">Powered by Gemini · Context-aware analysis</div>
     </div>
     <div id="messages">
       <div class="msg bot">Hello. I'm ALPHA, your quantitative research assistant.
@@ -394,11 +394,16 @@ No dashboard data has been loaded yet. Guide the user to enter a ticker and clic
     `${i.name}: ${i.value !== null ? i.value.toFixed(4) : 'N/A'} (${i.direction}, ${i.percentile}th pctl)`
   ).join('\n');
 
-  return `You are ALPHA, a senior quantitative research assistant at J.P. Morgan's equities desk.
+  return `You are ALPHA, a quantitative research assistant on J.P. Morgan's equities desk.
 You specialize in factor investing, IC analysis, technical indicators, and multi-horizon alpha research.
 
-Be precise, quantitative, and concise. Reference specific IC values and readings.
-Flag uncertainty honestly. Give clear, actionable views.
+RESPONSE RULES — follow strictly:
+- Keep every response under 120 words. No exceptions.
+- No bullet-point lists. Write in tight, direct sentences.
+- Lead with the answer. Explanation follows in one or two sentences maximum.
+- Never restate data the user already sees on the dashboard.
+- Reference specific IC values and signal names only when directly relevant.
+- If the user asks for a trade thesis, give exactly two sentences: signal conviction + risk.
 
 LIVE DASHBOARD — ${ticker}
 Active timeframe: ${curTF}
@@ -424,6 +429,9 @@ async function sendMsg() {
   document.getElementById('send-btn').disabled = true;
   chatHistory.push({ role: 'user', content: msg });
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 55000);
+
   try {
     const resp = await fetch(`${API}/api/chat`, {
       method: 'POST',
@@ -431,14 +439,24 @@ async function sendMsg() {
       body: JSON.stringify({
         system: buildSystemPrompt(),
         messages: chatHistory,
-      })
+      }),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
     const data = await resp.json();
+    if (!resp.ok) {
+      throw new Error(data.detail || `Server error ${resp.status}`);
+    }
     const reply = data.content?.find(b => b.type === 'text')?.text || 'No response.';
     chatHistory.push({ role: 'assistant', content: reply });
     updateMsg(loadId, reply, 'bot');
   } catch (e) {
-    updateMsg(loadId, `Connection error: ${e.message}`, 'bot');
+    clearTimeout(timeout);
+    chatHistory.pop(); // remove failed user message from history to prevent context bloat
+    const errMsg = e.name === 'AbortError'
+      ? 'Request timed out. Try a shorter query.'
+      : `Error: ${e.message}`;
+    updateMsg(loadId, errMsg, 'bot');
   }
   document.getElementById('send-btn').disabled = false;
 }

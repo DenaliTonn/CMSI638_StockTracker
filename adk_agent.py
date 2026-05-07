@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Optional
@@ -31,7 +32,9 @@ from google.adk.tools.mcp_tool import StdioConnectionParams
 from mcp import StdioServerParameters
 from google.genai import types
 
-# ── Config ──────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
+#  Config
+# ─────────────────────────────────────────────
 MCP_SERVER_PATH = str(Path(__file__).parent / "main.py")
 PYTHON_BIN = sys.executable
 
@@ -45,7 +48,9 @@ BANNER = """
 ╚══════════════════════════════════════════════════════╝
 """
 
-# ── Agent definitions ────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
+#  Agent instructions
+# ─────────────────────────────────────────────
 
 DATA_AGENT_INSTRUCTION = """
 You are a Data Technician. Your ONLY job is to call compute_all_indicators
@@ -55,40 +60,41 @@ no summarising, no commentary, no formatting changes.
 
 QUANT_AGENT_INSTRUCTION = """
 You are a Quant Analyst. Your ONLY job is to call compute_ic_table
-for the requested ticker and return the formatted table EXACTLY as received.
+for the requested ticker and horizon and return the formatted table EXACTLY as received.
 Do not add any commentary or modify the output.
 """
 
 REASONING_AGENT_INSTRUCTION = """
-You are a Quantitative Executioner on a sell-side equities desk.
-You receive: TICKER, HORIZON, a Data Snapshot, and an IC Table.
+You are a Quantitative Executioner. Be direct and concise — no prose padding.
 
-STRICT RULES:
-1. Identify the top 3 signals in the IC Table with the HIGHEST ABSOLUTE IC
-   values at the requested HORIZON.
-2. Look up the current values of those exact 3 signals in the Data Snapshot.
-3. Issue one of: BUY / SELL / HOLD
-   - BUY  if the weighted signal composite is positive and material (>0.03)
-   - SELL if the weighted signal composite is negative and material (<-0.03)
-   - HOLD otherwise
-4. Output in this EXACT format (no deviation):
+SINGLE HORIZON — use this exact format, nothing more:
 
-DECISION: <BUY|SELL|HOLD>
-CONFIDENCE: <LOW|MEDIUM|HIGH>
+DECISION: <BUY|SELL|HOLD>  |  CONFIDENCE: <LOW|MEDIUM|HIGH>
 
-TOP SIGNALS @ <horizon>:
-  1. <signal_name>  IC=<value>  Current=<value>  Direction=<+/->
-  2. <signal_name>  IC=<value>  Current=<value>  Direction=<+/->
-  3. <signal_name>  IC=<value>  Current=<value>  Direction=<+/->
+SIGNALS @ <horizon>:
+  1. <signal>  IC=<val>  Current=<val>  (<+/->)
+  2. <signal>  IC=<val>  Current=<val>  (<+/->)
+  3. <signal>  IC=<val>  Current=<val>  (<+/->)
 
-JUSTIFICATION:
-<Two precise sentences explaining how the 3 signals converge to support the decision.>
+THESIS: <One sentence explaining the convergence.>
+RISK: <One sentence on the primary risk to monitor.>
 
-RISK NOTE:
-<One sentence on the primary risk or conflicting signal to monitor.>
+MULTI-HORIZON — repeat the block above once per horizon, then add:
+
+COMPARISON: <One sentence contrasting conviction across horizons.>
 """
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
+#  Helpers
+# ─────────────────────────────────────────────
+
+
+def _parse_horizons(user_input: str) -> list[str]:
+    """Extract all horizon mentions from a free-form user query."""
+    found = re.findall(r'\b(1h|4h|8h|24h)\b', user_input.lower())
+    seen = set()
+    return [h for h in found if not (h in seen or seen.add(h))]
+
 
 async def run_agent_task(
     agent: LlmAgent,
@@ -114,7 +120,7 @@ async def run_agent_task(
     return response_text.strip()
 
 
-def _prompt(label: str, text: str) -> None:
+def _print_divider(label: str, text: str) -> None:
     width = 54
     print(f"\n{'─' * width}")
     print(f"  {label}")
@@ -129,16 +135,22 @@ def _get_input(prompt: str, valid: Optional[tuple] = None) -> str:
             return val.lower() if val else val
         print(f"  ⚠  Please enter one of: {', '.join(valid)}")
 
+# ─────────────────────────────────────────────
+#  Per-horizon data + quant pipeline
+# ─────────────────────────────────────────────
 
-# ── Main orchestrator ─────────────────────────────────────────────────────────
-
-async def orchestrate(ticker: str, horizon: str, toolset: McpToolset,
-                      session_service: InMemorySessionService) -> dict:
+async def orchestrate(
+    ticker: str,
+    horizon: str,
+    toolset: McpToolset,
+    session_service: InMemorySessionService,
+) -> dict:
     """
-    Run the full 3-agent pipeline for a ticker + horizon.
-    Returns a dict with keys: ticker, horizon, data, ic_table, decision.
+    Run the data and quant agents for a single ticker + horizon.
+    Returns dict with keys: ticker, horizon, data, ic_table.
+    Reasoning agent is called separately in main() to support
+    multi-horizon comparisons in a single consolidated prompt.
     """
-    # Agent construction is cheap — rebuild per run to avoid stale session state
     data_agent = LlmAgent(
         name="data_agent", model=MODEL,
         instruction=DATA_AGENT_INSTRUCTION, tools=[toolset]
@@ -147,32 +159,17 @@ async def orchestrate(ticker: str, horizon: str, toolset: McpToolset,
         name="quant_agent", model=MODEL,
         instruction=QUANT_AGENT_INSTRUCTION, tools=[toolset]
     )
-    reasoning_agent = LlmAgent(
-        name="reasoning_agent", model=MODEL,
-        instruction=REASONING_AGENT_INSTRUCTION, tools=[]
-    )
 
-    print(f"\n[1/3] 📊 Data Agent  — fetching 32 signals for {ticker}...")
+    print(f"\n  [1/2] 📊 Data Agent  — fetching signals for {ticker}...")
     data_result = await run_agent_task(
         data_agent, f"Get all indicators for {ticker}", session_service
     )
 
-    print(f"[2/3] 🧮 Quant Agent — computing IC table for {ticker}...")
+    await asyncio.sleep(3)  # prevent Massive API rate-limit on back-to-back fetches
+
+    print(f"  [2/2] 🧮 Quant Agent — computing IC table for {ticker} at {horizon}...")
     ic_result = await run_agent_task(
-        quant_agent, f"Compute the IC table for {ticker}", session_service
-    )
-
-    print(f"[3/3] 🧠 Reasoning Agent — synthesising {horizon} decision...\n")
-    await asyncio.sleep(3)   # brief pause to avoid Gemini rate-limit on rapid sequential calls
-
-    reasoning_prompt = (
-        f"TICKER: {ticker}\n"
-        f"HORIZON: {horizon}\n\n"
-        f"DATA SNAPSHOT:\n{data_result}\n\n"
-        f"IC TABLE:\n{ic_result}"
-    )
-    decision = await run_agent_task(
-        reasoning_agent, reasoning_prompt, session_service
+        quant_agent, f"Compute the IC table for {ticker} at the {horizon} horizon", session_service
     )
 
     return {
@@ -180,8 +177,11 @@ async def orchestrate(ticker: str, horizon: str, toolset: McpToolset,
         "horizon":  horizon,
         "data":     data_result,
         "ic_table": ic_result,
-        "decision": decision,
     }
+
+# ─────────────────────────────────────────────
+#  Main Orchestrator 
+# ─────────────────────────────────────────────
 
 
 async def main() -> None:
@@ -202,26 +202,82 @@ async def main() -> None:
             print("Goodbye.")
             break
 
-        horizon = _get_input(
-            "Horizon (1h / 4h / 8h / 24h): ",
-            valid=HORIZONS
-        )
-        if not horizon:
+        user_query = input("Query (e.g. 'analyze 8h' or 'compare 8h and 24h'): ").strip()
+        if not user_query:
             continue
 
+        horizons = _parse_horizons(user_query)
+
+        # Fall back to explicit prompt if no horizons detected
+        if not horizons:
+            h = _get_input("No horizon detected. Enter one (1h / 4h / 8h / 24h): ", valid=HORIZONS)
+            horizons = [h]
+
         try:
-            result = await orchestrate(ticker, horizon, toolset, session_service)
+            # Run data + quant agents per horizon
+            results = []
+            for i, horizon in enumerate(horizons):
+                print(f"\n── Horizon {i + 1}/{len(horizons)}: {horizon} ──")
+                if i > 0:
+                    await asyncio.sleep(3)  # rate-limit guard between horizon runs
+                result = await orchestrate(ticker, horizon, toolset, session_service)
+                results.append(result)
+
+            # Build master prompt — single or comparative
+            if len(results) == 1:
+                r = results[0]
+                reasoning_prompt = (
+                    f"TICKER: {r['ticker']}\n"
+                    f"HORIZON: {r['horizon']}\n\n"
+                    f"DATA SNAPSHOT:\n{r['data']}\n\n"
+                    f"IC TABLE:\n{r['ic_table']}"
+                )
+            else:
+                blocks = []
+                for r in results:
+                    blocks.append(
+                        f"── HORIZON: {r['horizon']} ──\n"
+                        f"DATA SNAPSHOT:\n{r['data']}\n\n"
+                        f"IC TABLE:\n{r['ic_table']}"
+                    )
+                reasoning_prompt = (
+                    f"TICKER: {results[0]['ticker']}\n"
+                    f"USER QUERY: {user_query}\n\n"
+                    + "\n\n".join(blocks)
+                )
+
+            # Scale output tokens to number of horizons, floor at 1024
+            output_tokens = max(400 * len(horizons) + 600, 1024)
+
+            reasoning_agent = LlmAgent(
+                name="reasoning_agent",
+                model=MODEL,
+                instruction=REASONING_AGENT_INSTRUCTION,
+                tools=[],
+                generate_content_config=types.GenerateContentConfig(
+                    max_output_tokens=output_tokens,
+                    temperature=0.1,
+                )
+            )
+
+            print(f"\n[🧠] Reasoning Agent — synthesising {', '.join(horizons)} decision(s)...\n")
+            await asyncio.sleep(3)  # rate-limit guard
+
+            decision = await run_agent_task(reasoning_agent, reasoning_prompt, session_service)
+
         except Exception as exc:
             print(f"\n  ✗ Pipeline failed: {exc}")
             continue
 
-        _prompt(f"DATA SNAPSHOT  ·  {ticker}", result["data"])
-        _prompt(f"IC TABLE  ·  {ticker}", result["ic_table"])
+        # Output
+        for r in results:
+            _print_divider(f"DATA SNAPSHOT  ·  {r['ticker']}  ·  {r['horizon']}", r["data"])
+            _print_divider(f"IC TABLE  ·  {r['ticker']}  ·  {r['horizon']}", r["ic_table"])
 
         print(f"\n{'═' * 54}")
-        print(f"  FINAL DECISION  ·  {ticker}  ·  {horizon}")
+        print(f"  FINAL DECISION  ·  {ticker}  ·  {', '.join(horizons)}")
         print(f"{'═' * 54}")
-        print(result["decision"])
+        print(decision)
         print(f"{'═' * 54}\n")
 
         again = _get_input("Analyze another ticker? (y/n): ", valid=("y", "n"))

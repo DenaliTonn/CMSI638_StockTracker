@@ -8,6 +8,7 @@ Run with:  uv run uvicorn web_server:app --reload --port 8000
 from __future__ import annotations
 
 import os
+import re
 import sys
 import time
 import asyncio
@@ -149,7 +150,7 @@ def _compute_predictions(df: pd.DataFrame, signals: pd.DataFrame) -> list[dict]:
         window = signals.tail(100)
         composite_score = 0.0
         weight_sum = 0.0
-        
+
         for sig, ic in top5:
             col = window[sig].dropna()
             if len(col) < 10:
@@ -162,10 +163,10 @@ def _compute_predictions(df: pd.DataFrame, signals: pd.DataFrame) -> list[dict]:
 
         composite_score = composite_score / (weight_sum + 1e-10)
         recent_vol = fwd[h].dropna().std()
-        predicted_return = float(composite_score * recent_vol) * 100 
+        predicted_return = float(composite_score * recent_vol) * 100
         strength = min(100, max(0, int(50 + composite_score * 20)))
         ci_half = float(recent_vol) * 100
-        
+
         preds.append({
             "horizon":          f"{h}h",
             "predicted_return": round(predicted_return, 3),
@@ -281,6 +282,7 @@ async def get_dashboard(ticker: str):
         "indicators":   indicators,
     }
 
+
 @app.post("/api/analyze")
 async def analyze(req: AnalyzeRequest):
     ticker  = req.ticker.upper()
@@ -289,14 +291,14 @@ async def analyze(req: AnalyzeRequest):
 
     dash = await get_dashboard(ticker)
 
-    h_key   = f"ic_{h_int}h"
-    top3    = sorted(
+    h_key = f"ic_{h_int}h"
+    top3  = sorted(
         [r for r in dash["ic_table"] if r.get(h_key) is not None],
         key=lambda r: abs(r[h_key]),
         reverse=True
     )[:3]
 
-    pred = next((p for p in dash["predictions"] if p["horizon"] == f"{h_int}h"), None)
+    pred      = next((p for p in dash["predictions"] if p["horizon"] == f"{h_int}h"), None)
     composite = dash["composite"]
 
     bias_word = {"long": "BUY", "short": "SELL", "neutral": "HOLD"}[composite["bias"]]
@@ -324,6 +326,7 @@ async def analyze(req: AnalyzeRequest):
 
     return {**dash, "reasoning": reasoning, "decision": bias_word}
 
+
 @app.get("/api/signal/{ticker}/{signal_name}")
 async def get_signal_detail(ticker: str, signal_name: str):
     ticker = ticker.upper()
@@ -350,15 +353,24 @@ async def get_signal_detail(ticker: str, signal_name: str):
         "last_10": last10,
     }
 
+
 @app.get("/api/signals")
 async def list_signals():
     return {"groups": SIGNAL_GROUPS}
+
 
 @app.post("/api/chat")
 async def handle_chat(payload: ChatPayload):
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY missing in .env")
+
+    # Scale output tokens based on how many horizons the user is asking about
+    last_user_msg = next(
+        (m.content for m in reversed(payload.messages) if m.role == "user"), ""
+    )
+    horizon_count = len(re.findall(r'\b(1h|4h|8h|24h)\b', last_user_msg.lower()))
+    max_tokens = max(400 * max(horizon_count, 1) + 600, 1024)
 
     # Map standard chat roles to Gemini roles
     gemini_messages = []
@@ -375,24 +387,26 @@ async def handle_chat(payload: ChatPayload):
         },
         "contents": gemini_messages,
         "generationConfig": {
-            "maxOutputTokens": 1000,
+            "maxOutputTokens": max_tokens,
+            "temperature": 0.1,
         }
     }
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(url, json=data)
+    # Increased timeout to 60s to handle longer multi-horizon responses
+    async with httpx.AsyncClient(timeout=60.0) as http_client:
+        resp = await http_client.post(url, json=data)
         if resp.status_code != 200:
             raise HTTPException(status_code=resp.status_code, detail=resp.text)
-        
+
         resp_data = resp.json()
         try:
-            # Extract text from Gemini and format it so the frontend doesn't need to change
             reply_text = resp_data["candidates"][0]["content"]["parts"][0]["text"]
             return {"content": [{"type": "text", "text": reply_text}]}
         except (KeyError, IndexError):
             raise HTTPException(status_code=500, detail="Unexpected response format from Gemini")
+
 
 if __name__ == "__main__":
     import uvicorn

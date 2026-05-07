@@ -117,7 +117,7 @@ def _compute_signals(df: pd.DataFrame) -> pd.DataFrame:
     """Compute all 32 alpha signals on the full DataFrame. Returns a signals DataFrame."""
     s = pd.DataFrame(index=df.index)
 
-    # ── Volume ──────────────────────────────────────────────────────────────
+    # Volume
     s["vol_7h"]      = df["volume"].rolling(7).mean()
     s["vol_35h"]     = df["volume"].rolling(35).mean()
     s["vol_147h"]    = df["volume"].rolling(147).mean()
@@ -125,18 +125,18 @@ def _compute_signals(df: pd.DataFrame) -> pd.DataFrame:
     s["vol_ratio"]   = df["volume"] / s["vol_7h"]
     s["vol_norm_ret"] = (df["close"].pct_change() * df["volume"]).rolling(7).sum()
 
-    # ── Momentum / ROC ───────────────────────────────────────────────────────
+    # Momentum / ROC
     s["momentum_7h"]   = df["close"].pct_change(7)
     s["momentum_35h"]  = df["close"].pct_change(35)
     s["momentum_147h"] = df["close"].pct_change(147)
     s["roc_7h"]        = s["momentum_7h"]
     s["roc_35h"]       = s["momentum_35h"]
 
-    # ── RSI ──────────────────────────────────────────────────────────────────
+    # RSI
     s["rsi_14"] = _rsi(df["close"], 14)
     s["rsi_50"] = _rsi(df["close"], 50)
 
-    # ── MACD / PPO ───────────────────────────────────────────────────────────
+    # MACD / PPO
     ema12 = df["close"].ewm(span=12, adjust=False).mean()
     ema26 = df["close"].ewm(span=26, adjust=False).mean()
     macd_line   = ema12 - ema26
@@ -145,18 +145,18 @@ def _compute_signals(df: pd.DataFrame) -> pd.DataFrame:
     s["macd_signal"] = signal_line
     s["ppo"]         = (macd_line / ema26) * 100
 
-    # ── Volatility ────────────────────────────────────────────────────────────
+    # Volatility
     atr = _atr(df, 14)
     s["atr_norm"] = atr / df["close"]
     s["hl_range"] = (df["high"] - df["low"]) / df["close"]
 
-    # ── MA Distance ───────────────────────────────────────────────────────────
+    # MA Distance
     s["dist_ma35"]  = df["close"] / df["close"].rolling(35).mean() - 1
     s["dist_ma147"] = df["close"] / df["close"].rolling(147).mean() - 1
     s["dist_ma441"] = df["close"] / df["close"].rolling(441).mean() - 1
     s["pct_from_high"] = df["close"] / df["high"].rolling(147).max() - 1
 
-    # ── Candlestick ────────────────────────────────────────────────────────────
+    # Candlestick 
     body_top    = df[["open", "close"]].max(axis=1)
     body_bottom = df[["open", "close"]].min(axis=1)
     s["upper_wick"]   = (df["high"] - body_top) / df["close"]
@@ -164,24 +164,24 @@ def _compute_signals(df: pd.DataFrame) -> pd.DataFrame:
     s["oc_direction"] = np.sign(df["close"] - df["open"])
     s["overnight_gap"] = df["open"] / df["close"].shift(1) - 1
 
-    # ── Chaikin AD ────────────────────────────────────────────────────────────
+    # Chaikin AD 
     s["chaikin_ad"] = _chaikin_ad(df)
 
-    # ── OBV signal ───────────────────────────────────────────────────────────
+    # OBV signal 
     obv = _obv(df)
     s["obv_signal"] = obv.pct_change(7)   # normalised 7-bar ROC of OBV
 
-    # ── MFI ──────────────────────────────────────────────────────────────────
+    # MFI
     s["mfi"] = _mfi(df, 14)
 
-    # ── Amihud illiquidity ────────────────────────────────────────────────────
+    # Amihud illiquidity
     s["amihud"] = (df["close"].pct_change().abs() / df["volume"].replace(0, np.nan)
                    ).rolling(21).mean()
 
-    # ── Bollinger Band Position ───────────────────────────────────────────────
+    #  Bollinger Band Position 
     s["bb_position"] = _bb_position(df, 20)
 
-    # ── Squared return (lag-1) ────────────────────────────────────────────────
+    #  Squared return (lag-1)
     s["sq_ret_lag1"] = df["close"].pct_change().shift(1) ** 2
 
     return s
@@ -282,7 +282,7 @@ def compute_all_indicators(ticker: str) -> str:
 
 
 @mcp.tool()
-def compute_ic_table(ticker: str, min_rows: int = 100) -> str:
+def compute_ic_table(ticker: str, horizon: str = "24h", min_rows: int = 100) -> str:
     """
     Computes the Information Coefficient (IC) table for a ticker — identical
     in structure to the GOOGL Hourly – IC by Horizon report.
@@ -334,7 +334,7 @@ def compute_ic_table(ticker: str, min_rows: int = 100) -> str:
             + "─" * 72
         )
         lines = [header]
-        for r in sorted(rows, key=lambda x: abs(x.get("24h") or 0), reverse=True):
+        for r in sorted(rows, key=lambda x: abs(x.get(horizon) or 0), reverse=True):
             def fmt(v):
                 return f"{v:+.3f}" if isinstance(v, float) and not np.isnan(v) else "  N/A "
             lines.append(
@@ -376,36 +376,6 @@ def get_signal_detail(ticker: str, signal_name: str) -> str:
         return summary
     except Exception as e:
         return f"Error fetching signal detail for {ticker}/{signal_name}: {str(e)}"
-
-
-# ─────────────────────────────────────────────
-#  Commented-out: NLP Sentiment (MarketAux)
-# ─────────────────────────────────────────────
-
-# @mcp.tool()
-# async def get_sentiment_analysis(ticker: str) -> str:
-#     """Real NLP Sentiment Agent via MarketAux."""
-#     import httpx
-#     api_token = os.getenv("MARKETAUX_API_KEY")
-#     ticker = ticker.upper()
-#     url = "https://api.marketaux.com/v1/news/all"
-#     params = {"symbols": ticker, "filter_entities": "true",
-#               "language": "en", "api_token": api_token}
-#     async with httpx.AsyncClient() as c:
-#         response = await c.get(url, params=params)
-#         if response.status_code != 200:
-#             return f"Error: Unable to fetch news (Status {response.status_code})"
-#         results = response.json().get("data", [])
-#         if not results:
-#             return f"No recent news found for {ticker}."
-#         top_news = results[0]
-#         sentiment_score = 0.0
-#         for entity in top_news.get("entities", []):
-#             if entity.get("symbol") == ticker:
-#                 sentiment_score = entity.get("sentiment_score", 0.0)
-#         return (f"NLP Sentiment Factor: {ticker} score={sentiment_score:.2f}. "
-#                 f"Top Headline: {top_news['title']}. URL: {top_news['url']}")
-
 
 if __name__ == "__main__":
     mcp.run()
